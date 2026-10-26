@@ -27,6 +27,7 @@ namespace Pachyderm_Acoustic.Utilities
                     Rhino.ApplicationSettings.FileSettings.AutoSaveEnabled = false;
                     Sim._workClock.Restart();
                     Sim.Begin();
+                    Rhino.RhinoApp.SetCommandPrompt(string.Format("Initiating {0} Calculation...", Sim.Sim_Type()));
                     // Let all workers observe cancellation and stop before discarding their buffers.
                     // Spec D7: check the state protocol first; completed work pays no delay, still-running
                     // work polls at the existing 3,000 ms interval.
