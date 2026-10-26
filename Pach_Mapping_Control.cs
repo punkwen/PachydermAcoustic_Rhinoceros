@@ -802,6 +802,10 @@ namespace Pachyderm_Acoustic
                 deltaSEL = new double[Source.Length];
                 velocity_mps = new double[Source.Length];
 
+                using (AnalysisRun analysis = new AnalysisRun())
+                {
+                    try
+                    {
                 for (int s_id = 0; s_id < Source.Length; s_id++)
                 {
                     //double T = 3600.0;
@@ -822,7 +826,7 @@ namespace Pachyderm_Acoustic
                     }
                     var sourceWaveformLifetime = sourceWaveforms;
                     Direct_Sound DS = new Direct_Sound(Source[s_id], Map[s_id], PScene, Enumerable.Range(0, Map[s_id].Third_Oct ? 24 : 8).ToArray(), this.Screen_Attenuation.Checked.Value, this.Sum_Time.Checked.Value) { SourceWaveforms = sourceWaveforms };
-                    TaskAwaiter<Simulation_Type> TA = RCPachTools.RunSimulation(DS).GetAwaiter();
+                    TaskAwaiter<Simulation_Type> TA = RCPachTools.RunSimulation(DS, true, analysis.Token).GetAwaiter();
                     while (!TA.IsCompleted) await Task.Delay(1500);
                     DS = TA.GetResult() as Direct_Sound;
 
@@ -845,7 +849,11 @@ namespace Pachyderm_Acoustic
                         try
                         {
                             images = new ImageSourceData(Source[s_id], Map[s_id], Direct_Data, PScene, new int[] { 0, Map[s_id].Third_Oct ? 23 : 7 }, imageOrder, false, s_id) { SourceWaveforms = sourceWaveforms };
-                            images = await RCPachTools.RunSimulation(images) as ImageSourceData;
+                            images = await RCPachTools.RunSimulation(images, true, analysis.Token) as ImageSourceData;
+                        }
+                        catch (OperationCanceledException)
+                        {
+                            throw;
                         }
                         catch (Exception error)
                         {
@@ -866,13 +874,13 @@ namespace Pachyderm_Acoustic
                             ((PachMapReceiver.Map_Receiver)Map[s_id].Rec_List[receiver]).Direct_Time = Direct_Data.Time(receiver);
                     }
 
-                    ConvergenceProgress CP = new ConvergenceProgress(new System.Threading.CancellationTokenSource(), 1000);
+                    ConvergenceProgress CP = new ConvergenceProgress(System.Threading.CancellationTokenSource.CreateLinkedTokenSource(analysis.Token), 1000);
                     if (!Spec_Rays.Checked) CP.Show(); //Rhino.UI.Panels.OpenPanel(new Guid("79B97A26-CEBC-4FA8-8275-9D961ADF1772"));//new System.Threading.Thread(() => {  }).Start();
 
                     SplitRayTracer RT = new SplitRayTracer(Source[s_id], Map[s_id], Flex_Scene, CutOffLength(), new int[2] { 0, Map[s_id].Third_Oct ? 23 : 7 }, imageOrder, Minimum_Convergence.Checked ? -1 : DetailedConvergence.Checked ? 0 : (int)RT_Count.Value, CP);
 
                     if (!Spec_Rays.Checked) foreach (SplitRayTracer.Convergence_Check c in RT.Convergence_Report) if (c != null) c.On_Convergence_Check += CP.Fill;
-                    TaskAwaiter<Simulation_Type> RTA = RCPachTools.RunSimulation(RT).GetAwaiter();
+                    TaskAwaiter<Simulation_Type> RTA = RCPachTools.RunSimulation(RT, true, analysis.Token).GetAwaiter();
                     while (!RTA.IsCompleted) await Task.Delay(1500);
                     RT = RTA.GetResult() as SplitRayTracer;
 
@@ -936,6 +944,14 @@ namespace Pachyderm_Acoustic
                         Rhino.RhinoApp.WriteLine($"FHWA delta capture error (source {s_id}): {ex.Message}");
                     }
 
+                }
+                    }
+                    catch (OperationCanceledException)
+                    {
+                        Rhino.RhinoApp.SetCommandPrompt("Calculation Cancelled by User...");
+                        Calculate.Enabled = true;
+                        return;
+                    }
                 }
 
                 if (Map == null || Map.Length == 0)
