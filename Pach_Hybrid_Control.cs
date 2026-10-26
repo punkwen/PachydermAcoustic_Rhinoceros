@@ -1293,35 +1293,43 @@ namespace Pachyderm_Acoustic
                                                 };
                         Rhino.RhinoApp.EscapeKeyPressed += usercancel;
 
-                        RT = await RCPachTools.RunSimulation(RT, true, analysis.Token) as SplitRayTracer;
-                        t.End_Stage("ray trace", RT);
-                        Rhino.RhinoApp.EscapeKeyPressed -= usercancel;
+                        try
+                        {
+                            RT = await RCPachTools.RunSimulation(RT, true, analysis.Token) as SplitRayTracer;
+                            t.End_Stage("ray trace", RT);
 
-                        if (RT != null)
-                        {
-                            ProgressBox VB = new ProgressBox("Creating Impulse Responses...");
-                            VB.Show(Rhino.RhinoDoc.ActiveDoc);
-                            t.Segment_Start();
-                            try
+                            if (RT != null)
                             {
-                                await Task.Run(() => { RT.GetReceiver.Create_Filter(VB); });
+                                ProgressBox VB = new ProgressBox("Creating Impulse Responses...");
+                                VB.Show(Rhino.RhinoDoc.ActiveDoc);
+                                t.Segment_Start();
+                                try
+                                {
+                                    await Task.Run(() => { RT.GetReceiver.Create_Filter(VB); });
+                                }
+                                finally
+                                {
+                                    VB.Close();
+                                }
+                                t.Segment_Stop();
+                                Receiver[s] = RT.GetReceiver;
+                                Populate_Sources();
+                                Rhino.RhinoApp.WriteLine(string.Format("{0} Rays ({1} sub-rays) cast in {2} hours, {3} minutes, {4} seconds.", RT._currentRay.Sum(), RT._rayTotal.Sum(), RT._ts.Hours, RT._ts.Minutes, RT._ts.Seconds));
+                                Rhino.RhinoApp.WriteLine("Percentage of energy lost: {0}%", RT.PercentLost);
                             }
-                            finally
+                            else
                             {
-                                VB.Close();
+                                CancelCalc();
+                                return;
                             }
-                            t.Segment_Stop();
-                            Receiver[s] = RT.GetReceiver;
-                            Populate_Sources();
-                            Rhino.RhinoApp.WriteLine(string.Format("{0} Rays ({1} sub-rays) cast in {2} hours, {3} minutes, {4} seconds.", RT._currentRay.Sum(), RT._rayTotal.Sum(), RT._ts.Hours, RT._ts.Minutes, RT._ts.Seconds));
-                            Rhino.RhinoApp.WriteLine("Percentage of energy lost: {0}%", RT.PercentLost);
+                            IR_Parts_Analysis.Visible = true;
                         }
-                        else
+                        finally
                         {
-                            CancelCalc();
-                            return;
+                            // A failure inside the awaited stage or the filter step must not leave
+                            // the handler attached: it would cancel every later stage and source.
+                            Rhino.RhinoApp.EscapeKeyPressed -= usercancel;
                         }
-                        IR_Parts_Analysis.Visible = true;
                     }
                     else t.Not_Run("ray trace");
                     Source[s].Lighten();

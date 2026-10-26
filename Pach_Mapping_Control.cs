@@ -937,6 +937,8 @@ namespace Pachyderm_Acoustic
                         catch (Exception error)
                         {
                             Rhino.RhinoApp.WriteLine("Mapping image-source assembly failed: {0}", error);
+                            t.Segment_Report("assemble direct + image sources into map (failed)");
+                            t.Report();
                             Array.Resize(ref Source, s_id);
                             Array.Resize(ref Map, s_id);
                             Calculate.Enabled = true;
