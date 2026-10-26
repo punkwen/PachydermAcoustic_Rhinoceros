@@ -28,16 +28,18 @@ namespace Pachyderm_Acoustic.Utilities
                     Sim._workClock.Restart();
                     Sim.Begin();
                     // Let all workers observe cancellation and stop before discarding their buffers.
+                    // Spec D7: check the state protocol first; completed work pays no delay, still-running
+                    // work polls at the existing 3,000 ms interval.
                     while (Sim.ThreadState() != System.Threading.ThreadState.Stopped)
                     {
-                        await Task.Delay(50);
+                        await Task.Delay(3000);
                         if (needfeedback) Rhino.RhinoApp.SetCommandPrompt(Sim.ProgressMsg());
                     }
                     cancellationToken.ThrowIfCancellationRequested();
                     Sim.Combine_ThreadLocal_Results();
                     while (Sim.ThreadState() == System.Threading.ThreadState.Running)
                     {
-                        await Task.Delay(50);
+                        await Task.Delay(3000);
                         if (needfeedback) Rhino.RhinoApp.SetCommandPrompt(Sim.ProgressMsg());
                     }
                     cancellationToken.ThrowIfCancellationRequested();

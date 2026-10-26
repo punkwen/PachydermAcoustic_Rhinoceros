@@ -1,4 +1,4 @@
-﻿//'Pachyderm-Acoustic: Geometrical Acoustics for Rhinoceros (GPL)   
+//'Pachyderm-Acoustic: Geometrical Acoustics for Rhinoceros (GPL)   
 //' 
 //'This file is part of Pachyderm-Acoustic. 
 //' 
@@ -843,9 +843,7 @@ namespace Pachyderm_Acoustic
                     t.Begin_Stage();
                     Direct_Sound DS = new Direct_Sound(Source[s_id], Map[s_id], PScene, Enumerable.Range(0, Map[s_id].Third_Oct ? 24 : 8).ToArray(), this.Screen_Attenuation.Checked.Value, this.Sum_Time.Checked.Value) { SourceWaveforms = sourceWaveforms };
                     t.Construct_Done();
-                    TaskAwaiter<Simulation_Type> TA = RCPachTools.RunSimulation(DS, true, analysis.Token).GetAwaiter();
-                    while (!TA.IsCompleted) await Task.Delay(1500);
-                    DS = TA.GetResult() as Direct_Sound;
+                    DS = await RCPachTools.RunSimulation(DS, true, analysis.Token) as Direct_Sound;
                     t.End_Stage("direct sound", DS);
 
                     Direct_Sound Direct_Data;
@@ -904,9 +902,7 @@ namespace Pachyderm_Acoustic
                     t.Construct_Done();
 
                     if (!Spec_Rays.Checked) foreach (SplitRayTracer.Convergence_Check c in RT.Convergence_Report) if (c != null) c.On_Convergence_Check += CP.Fill;
-                    TaskAwaiter<Simulation_Type> RTA = RCPachTools.RunSimulation(RT, true, analysis.Token).GetAwaiter();
-                    while (!RTA.IsCompleted) await Task.Delay(1500);
-                    RT = RTA.GetResult() as SplitRayTracer;
+                    RT = await RCPachTools.RunSimulation(RT, true, analysis.Token) as SplitRayTracer;
                     t.End_Stage("ray trace", RT);
 
                     if (RT != null)
@@ -2544,11 +2540,23 @@ namespace Pachyderm_Acoustic
                         DialogResult DR = MessageBox.Show("Pachyderm will now create the pressure impulse responses for your previously calculated intensity responses. This can take awhile, though, depending on how many receivers you have, and how long a cutoff time you chose. Are you sure you would like to do this?", "Pressure Impulse Response Creation", MessageBoxButtons.YesNo);
                         if (DR == DialogResult.Yes)
                         {
-                            Linear_Phase = Audio.Pach_SP.Filter is Audio.Pach_SP.Linear_Phase_System;
                             ProgressBox VB = new ProgressBox("Creating Impulse Responses...");
                             VB.Show(Rhino.RhinoDoc.ActiveDoc);
-                            for (int i = 0; i < this.Map.Length; i++) this.Map[i].Create_Filter(VB); //this.Map[i].Create_Pressure(Map[i].SWL);
-                            VB.Close();
+                            try
+                            {
+                                for (int i = 0; i < this.Map.Length; i++) this.Map[i].Create_Filter(VB); //this.Map[i].Create_Pressure(Map[i].SWL);
+                                Linear_Phase = Audio.Pach_SP.Filter is Audio.Pach_SP.Linear_Phase_System;
+                            }
+                            catch (Exception error)
+                            {
+                                Rhino.RhinoApp.WriteLine("Creating pressure impulse responses failed: {0}", error);
+                                MessageBox.Show("Creating pressure impulse responses failed:\n" + error.Message, "Pachyderm");
+                                return;
+                            }
+                            finally
+                            {
+                                VB.Close();
+                            }
                         }
                     }
                 }

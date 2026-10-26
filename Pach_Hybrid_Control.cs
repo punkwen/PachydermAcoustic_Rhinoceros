@@ -1203,9 +1203,7 @@ namespace Pachyderm_Acoustic
                     t.Begin_Stage();
                     Direct_Sound DS = new Direct_Sound(Source[s], Rec, PScene, Enumerable.Range(0, Rec.Third_Oct ? 24 : 8).ToArray()) { SourceWaveforms = sourceWaveforms };
                     t.Construct_Done();
-                    TaskAwaiter<Simulation_Type> TA = RCPachTools.RunSimulation(DS, true, analysis.Token).GetAwaiter();
-                    while (!TA.IsCompleted) await Task.Delay(1500);
-                    DS = TA.GetResult() as Direct_Sound;
+                    DS = await RCPachTools.RunSimulation(DS, true, analysis.Token) as Direct_Sound;
                     t.End_Stage("direct sound", DS);
 
                     if (DS != null)
@@ -1226,9 +1224,7 @@ namespace Pachyderm_Acoustic
                         t.Begin_Stage();
                         ImageSourceData IS = new ImageSourceData(Source[s], Rec, Direct_Data[s], PScene, new int[] { 0, Rec.Third_Oct ? 23 : 7 }, (int)Image_Order.Value, BTM_ED.Checked.Value, s) { SourceWaveforms = sourceWaveforms };
                         t.Construct_Done();
-                        TaskAwaiter<Simulation_Type> TISA = RCPachTools.RunSimulation(IS, true, analysis.Token).GetAwaiter();
-                        while (!TISA.IsCompleted) await Task.Delay(1500);
-                        IS = TISA.GetResult() as ImageSourceData;
+                        IS = await RCPachTools.RunSimulation(IS, true, analysis.Token) as ImageSourceData;
                         t.End_Stage("image source", IS);
 
                         if (IS != null)
@@ -1258,10 +1254,7 @@ namespace Pachyderm_Acoustic
                         t.Begin_Stage();
                         IS_Trace IST = new IS_Trace(Source[s], Rec, PScene, ((double)(CO_TIME.Value / 1000) * PScene.Sound_speed(0)), (int)Spec_RayCount.Value, (int)Image_Order.Value, PScene.Sound_speed(0), SampleRate);
                         t.Construct_Done();
-                        TaskAwaiter<Simulation_Type> TISTA = RCPachTools.RunSimulation(IST, true, analysis.Token).GetAwaiter();
-
-                        while (!TISTA.IsCompleted) await Task.Delay(1500);
-                        IST = TISTA.GetResult() as IS_Trace;
+                        IST = await RCPachTools.RunSimulation(IST, true, analysis.Token) as IS_Trace;
                         t.End_Stage("is-trace", IST);
 
                         if (IST != null)
@@ -1300,10 +1293,7 @@ namespace Pachyderm_Acoustic
                                                 };
                         Rhino.RhinoApp.EscapeKeyPressed += usercancel;
 
-                        TaskAwaiter<Simulation_Type> TRTA = RCPachTools.RunSimulation(RT, true, analysis.Token).GetAwaiter();
-                        while (!TRTA.IsCompleted) 
-                            await Task.Delay(3000);
-                        RT = TRTA.GetResult() as SplitRayTracer;
+                        RT = await RCPachTools.RunSimulation(RT, true, analysis.Token) as SplitRayTracer;
                         t.End_Stage("ray trace", RT);
                         Rhino.RhinoApp.EscapeKeyPressed -= usercancel;
 
@@ -1312,9 +1302,15 @@ namespace Pachyderm_Acoustic
                             ProgressBox VB = new ProgressBox("Creating Impulse Responses...");
                             VB.Show(Rhino.RhinoDoc.ActiveDoc);
                             t.Segment_Start();
-                            await Task.Run(() => { RT.GetReceiver.Create_Filter(VB); });
+                            try
+                            {
+                                await Task.Run(() => { RT.GetReceiver.Create_Filter(VB); });
+                            }
+                            finally
+                            {
+                                VB.Close();
+                            }
                             t.Segment_Stop();
-                            VB.Close();
                             Receiver[s] = RT.GetReceiver;
                             Populate_Sources();
                             Rhino.RhinoApp.WriteLine(string.Format("{0} Rays ({1} sub-rays) cast in {2} hours, {3} minutes, {4} seconds.", RT._currentRay.Sum(), RT._rayTotal.Sum(), RT._ts.Hours, RT._ts.Minutes, RT._ts.Seconds));
@@ -1761,14 +1757,23 @@ namespace Pachyderm_Acoustic
                 this.Linear_Phase = Linear_Phase;
                 if ((Linear_Phase == true && Audio.Pach_SP.Filter is Audio.Pach_SP.Linear_Phase_System) || (Linear_Phase == false && Audio.Pach_SP.Filter is Audio.Pach_SP.Minimum_Phase_System))
                 {
-                    for (int i = 0; i < Direct_Data.Length; i++) Direct_Data[i].Create_Filter();
                     ProgressBox VB = new ProgressBox("Creating IR Filters for Deterministic Reflections...");
                     VB.Show(Rhino.RhinoDoc.ActiveDoc);
-                    for (int i = 0; i < IS_Data.Length; i++) if (IS_Data[i] != null) IS_Data[i].Create_Filter(Direct_Data[i].SWL, 16384, VB);
-                    VB.change_title("Creating Impulse Responses...");
-                    for (int i = 0; i < Receiver.Length; i++) Receiver[i].Create_Filter(VB);
-                    VB.Close();
-                    this.Linear_Phase = Linear_Phase;
+                    try
+                    {
+                        for (int i = 0; i < Direct_Data.Length; i++) Direct_Data[i].Create_Filter();
+                        for (int i = 0; i < IS_Data.Length; i++) if (IS_Data[i] != null) IS_Data[i].Create_Filter(Direct_Data[i].SWL, 16384, VB);
+                        VB.change_title("Creating Impulse Responses...");
+                        for (int i = 0; i < Receiver.Length; i++) Receiver[i].Create_Filter(VB);
+                    }
+                    catch (Exception error)
+                    {
+                        ReportSimulationError(error, "Rebuilding filters for the new phase regime failed");
+                    }
+                    finally
+                    {
+                        VB.Close();
+                    }
                 }
             }
 
