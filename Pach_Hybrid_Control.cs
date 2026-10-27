@@ -1203,7 +1203,7 @@ namespace Pachyderm_Acoustic
                     t.Begin_Stage();
                     Direct_Sound DS = new Direct_Sound(Source[s], Rec, PScene, Enumerable.Range(0, Rec.Third_Oct ? 24 : 8).ToArray()) { SourceWaveforms = sourceWaveforms };
                     t.Construct_Done();
-                    DS = await RCPachTools.RunSimulation(DS, true, analysis.Token) as Direct_Sound;
+                    DS = await RCPachTools.RunSimulation(DS, true, analysis.Token, string.Format("Hybrid source {0}/{1}: direct sound", s + 1, Source.Length)) as Direct_Sound;
                     t.End_Stage("direct sound", DS);
 
                     if (DS != null)
@@ -1224,7 +1224,7 @@ namespace Pachyderm_Acoustic
                         t.Begin_Stage();
                         ImageSourceData IS = new ImageSourceData(Source[s], Rec, Direct_Data[s], PScene, new int[] { 0, Rec.Third_Oct ? 23 : 7 }, (int)Image_Order.Value, BTM_ED.Checked.Value, s) { SourceWaveforms = sourceWaveforms };
                         t.Construct_Done();
-                        IS = await RCPachTools.RunSimulation(IS, true, analysis.Token) as ImageSourceData;
+                        IS = await RCPachTools.RunSimulation(IS, true, analysis.Token, string.Format("Hybrid source {0}/{1}: image source", s + 1, Source.Length)) as ImageSourceData;
                         t.End_Stage("image source", IS);
 
                         if (IS != null)
@@ -1254,7 +1254,7 @@ namespace Pachyderm_Acoustic
                         t.Begin_Stage();
                         IS_Trace IST = new IS_Trace(Source[s], Rec, PScene, ((double)(CO_TIME.Value / 1000) * PScene.Sound_speed(0)), (int)Spec_RayCount.Value, (int)Image_Order.Value, PScene.Sound_speed(0), SampleRate);
                         t.Construct_Done();
-                        IST = await RCPachTools.RunSimulation(IST, true, analysis.Token) as IS_Trace;
+                        IST = await RCPachTools.RunSimulation(IST, true, analysis.Token, string.Format("Hybrid source {0}/{1}: is-trace", s + 1, Source.Length)) as IS_Trace;
                         t.End_Stage("is-trace", IST);
 
                         if (IST != null)
@@ -1295,7 +1295,7 @@ namespace Pachyderm_Acoustic
 
                         try
                         {
-                            RT = await RCPachTools.RunSimulation(RT, true, analysis.Token) as SplitRayTracer;
+                            RT = await RCPachTools.RunSimulation(RT, true, analysis.Token, string.Format("Hybrid source {0}/{1}: ray trace", s + 1, Source.Length)) as SplitRayTracer;
                             t.End_Stage("ray trace", RT);
 
                             if (RT != null)

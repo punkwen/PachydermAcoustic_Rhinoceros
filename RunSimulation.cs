@@ -7,8 +7,9 @@ namespace Pachyderm_Acoustic.Utilities
 {
     public partial class RCPachTools
     {
-        public static async Task<Simulation_Type> RunSimulation(Simulation_Type Sim, bool needfeedback = true, CancellationToken cancellationToken = default)
+        public static async Task<Simulation_Type> RunSimulation(Simulation_Type Sim, bool needfeedback = true, CancellationToken cancellationToken = default, string context = null)
         {
+            string Prefix = string.IsNullOrEmpty(context) ? "" : context + " | ";
             cancellationToken.ThrowIfCancellationRequested();
             if (Sim == null) return null;
             Sim.Cancellation = cancellationToken;
@@ -27,21 +28,21 @@ namespace Pachyderm_Acoustic.Utilities
                     Rhino.ApplicationSettings.FileSettings.AutoSaveEnabled = false;
                     Sim._workClock.Restart();
                     Sim.Begin();
-                    Rhino.RhinoApp.SetCommandPrompt(string.Format("Initiating {0} Calculation...", Sim.Sim_Type()));
+                    Rhino.RhinoApp.SetCommandPrompt(Prefix + string.Format("Initiating {0} Calculation...", Sim.Sim_Type()));
                     // Let all workers observe cancellation and stop before discarding their buffers.
                     // Spec D7: check the state protocol first; completed work pays no delay, still-running
                     // work polls at the existing 3,000 ms interval.
                     while (Sim.ThreadState() != System.Threading.ThreadState.Stopped)
                     {
                         await Task.Delay(3000);
-                        if (needfeedback) Rhino.RhinoApp.SetCommandPrompt(Sim.ProgressMsg());
+                        if (needfeedback) Rhino.RhinoApp.SetCommandPrompt(Prefix + Sim.ProgressMsg());
                     }
                     cancellationToken.ThrowIfCancellationRequested();
                     Sim.Combine_ThreadLocal_Results();
                     while (Sim.ThreadState() == System.Threading.ThreadState.Running)
                     {
                         await Task.Delay(3000);
-                        if (needfeedback) Rhino.RhinoApp.SetCommandPrompt(Sim.ProgressMsg());
+                        if (needfeedback) Rhino.RhinoApp.SetCommandPrompt(Prefix + Sim.ProgressMsg());
                     }
                     cancellationToken.ThrowIfCancellationRequested();
                     Sim._workClock.Stop();
@@ -78,7 +79,6 @@ namespace Pachyderm_Acoustic.Utilities
             this.title = title;
         }
 
-        /// <summary>Call immediately before the stage's construction; construction cost is the tracer/pool cost.</summary>
         public void Begin_Stage()
         {
             stage.Restart();

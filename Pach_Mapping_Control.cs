@@ -843,7 +843,7 @@ namespace Pachyderm_Acoustic
                     t.Begin_Stage();
                     Direct_Sound DS = new Direct_Sound(Source[s_id], Map[s_id], PScene, Enumerable.Range(0, Map[s_id].Third_Oct ? 24 : 8).ToArray(), this.Screen_Attenuation.Checked.Value, this.Sum_Time.Checked.Value) { SourceWaveforms = sourceWaveforms };
                     t.Construct_Done();
-                    DS = await RCPachTools.RunSimulation(DS, true, analysis.Token) as Direct_Sound;
+                    DS = await RCPachTools.RunSimulation(DS, true, analysis.Token, string.Format("Mapping grid {0}/{1}: direct sound", s_id + 1, Source.Length)) as Direct_Sound;
                     t.End_Stage("direct sound", DS);
 
                     Direct_Sound Direct_Data;
@@ -867,7 +867,7 @@ namespace Pachyderm_Acoustic
                             t.Begin_Stage();
                             images = new ImageSourceData(Source[s_id], Map[s_id], Direct_Data, PScene, new int[] { 0, Map[s_id].Third_Oct ? 23 : 7 }, imageOrder, false, s_id) { SourceWaveforms = sourceWaveforms };
                             t.Construct_Done();
-                            images = await RCPachTools.RunSimulation(images, true, analysis.Token) as ImageSourceData;
+                            images = await RCPachTools.RunSimulation(images, true, analysis.Token, string.Format("Mapping grid {0}/{1}: image source", s_id + 1, Source.Length)) as ImageSourceData;
                             t.End_Stage("image source", images);
                         }
                         catch (OperationCanceledException)
@@ -902,7 +902,7 @@ namespace Pachyderm_Acoustic
                     t.Construct_Done();
 
                     if (!Spec_Rays.Checked) foreach (SplitRayTracer.Convergence_Check c in RT.Convergence_Report) if (c != null) c.On_Convergence_Check += CP.Fill;
-                    RT = await RCPachTools.RunSimulation(RT, true, analysis.Token) as SplitRayTracer;
+                    RT = await RCPachTools.RunSimulation(RT, true, analysis.Token, string.Format("Mapping grid {0}/{1}: ray trace", s_id + 1, Source.Length)) as SplitRayTracer;
                     t.End_Stage("ray trace", RT);
 
                     if (RT != null)
