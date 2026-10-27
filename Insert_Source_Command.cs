@@ -2126,6 +2126,7 @@ namespace Pachyderm_Acoustic
 
             protected override void DrawForeground(DrawEventArgs e)
             {
+                if (!Pach_Preview_State.Show_Sources) return;
                 Dictionary<string, List<RhinoObject>> arrays = SelectedSteerableArrays(false);
                 Dictionary<string, List<RhinoObject>> selected_arrays = arrays.Where(array => array.Value.Any(obj => obj.IsSelected(false) != 0)).ToDictionary(array => array.Key, array => array.Value);
                 HashSet<string> selected_array_groups = new HashSet<string>(selected_arrays.Keys);
